@@ -52,6 +52,12 @@ class TextOverlay:
                 "description_padding": ("INT", {"default": 20, "min": 0, "max": 200, "step": 1}),
                 "author_padding": ("INT", {"default": 20, "min": 0, "max": 200, "step": 1}),
                 "boundary_padding": ("INT", {"default": 0, "min": 0, "max": 200, "step": 1}),
+                
+                # Shadow settings
+                "shadow_enabled": (["Yes", "No"], {"default": "Yes"}),
+                "shadow_offset": ("INT", {"default": 2, "min": 1, "max": 10, "step": 1}),
+                "shadow_color": ("STRING", {"default": "#000000"}),
+                "shadow_opacity": ("INT", {"default": 128, "min": 0, "max": 255, "step": 1}),
             }
         }
 
@@ -105,12 +111,18 @@ class TextOverlay:
         description, description_font, description_size, description_color,
         author, author_font, author_size, author_color,
         horizontal_align, vertical_position, margin_percent, line_spacing, width_percent,
-        heading_padding, description_padding, author_padding, boundary_padding
+        heading_padding, description_padding, author_padding, boundary_padding,
+        shadow_enabled, shadow_offset, shadow_color, shadow_opacity
     ):
         # Convert tensor to PIL Image
         image_tensor = image
         image_np = image_tensor.cpu().numpy()
         image_pil = Image.fromarray((image_np.squeeze(0) * 255).astype(np.uint8))
+        
+        # Create an RGBA version for alpha blending if needed
+        if image_pil.mode != 'RGBA':
+            image_pil = image_pil.convert('RGBA')
+        
         draw = ImageDraw.Draw(image_pil)
 
         # Get image dimensions
@@ -132,7 +144,11 @@ class TextOverlay:
 
         def parse_color(color_str):
             return tuple(int(color_str.lstrip("#")[i:i+2], 16) for i in (0, 2, 4))
-
+        
+        # Parse shadow color with opacity
+        shadow_rgb = parse_color(shadow_color)
+        shadow_rgba = (shadow_rgb[0], shadow_rgb[1], shadow_rgb[2], shadow_opacity)
+        
         # Prepare all text elements
         text_blocks = []
         text_paddings = []
@@ -181,6 +197,10 @@ class TextOverlay:
         else:  # bottom
             current_y = img_height - total_height - margin - boundary_padding
 
+        # Create a temporary transparent image for text with shadow
+        text_layer = Image.new('RGBA', image_pil.size, (0, 0, 0, 0))
+        text_draw = ImageDraw.Draw(text_layer)
+        
         # Draw all text blocks
         for i, block in enumerate(text_blocks):
             for line in block['lines']:
@@ -194,13 +214,36 @@ class TextOverlay:
                 else:  # right
                     x = img_width - line_width - margin
                 
-                draw.text((x, current_y), line, fill=block['color'], font=block['font'])
+                # Draw text shadow if enabled
+                if shadow_enabled == "Yes":
+                    # Draw shadow with offset
+                    text_draw.text(
+                        (x + shadow_offset, current_y + shadow_offset), 
+                        line, 
+                        fill=shadow_rgba, 
+                        font=block['font']
+                    )
+                
+                # Draw main text
+                text_draw.text(
+                    (x, current_y), 
+                    line, 
+                    fill=block['color'] + (255,),  # Add full opacity to RGB color
+                    font=block['font']
+                )
+                
                 current_y += block['font_size'] + line_spacing
             
             # Add padding between text blocks
             if i < len(text_blocks) - 1:  # Don't add padding after the last block
                 current_y += text_paddings[i]
-
+        
+        # Composite the text layer onto the original image
+        image_pil = Image.alpha_composite(image_pil, text_layer)
+        
+        # Convert back to RGB for tensor conversion
+        image_pil = image_pil.convert('RGB')
+        
         # Convert back to tensor
         image_tensor_out = torch.tensor(np.array(image_pil).astype(np.float32) / 255.0)
         image_tensor_out = torch.unsqueeze(image_tensor_out, 0)
