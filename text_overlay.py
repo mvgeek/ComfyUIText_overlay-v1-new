@@ -6,7 +6,9 @@ import os
 class TextOverlay:
     def __init__(self, device="cpu"):
         self.device = device
-        self.fonts_dir = os.path.join(os.path.dirname(__file__), "fonts")
+        self.fonts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts")
+        if not os.path.exists(self.fonts_dir):
+            print(f"WARNING: Fonts directory not found at {self.fonts_dir}")
     
     _alignments = ["left", "right", "center"]
     _vertical_positions = ["top", "middle", "bottom"]
@@ -113,6 +115,10 @@ class TextOverlay:
         # Helper functions
         def load_font(font_name, size):
             font_path = os.path.join(self.fonts_dir, font_name)
+            if not os.path.exists(font_path):
+                print(f"WARNING: Font file not found at {font_path}, falling back to default system font")
+                # Fallback to a system font if the specific font is not found
+                return ImageFont.load_default()
             return ImageFont.truetype(font_path, size)
 
         def parse_color(color_str):

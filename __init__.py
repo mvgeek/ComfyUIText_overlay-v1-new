@@ -4,6 +4,7 @@ import torch
 import numpy as np
 import random
 from text_overlay import TextOverlay
+from test_node import TestNode
 
 class AnyType(str):
   """A special class that is always equal in not equal comparisons. Credit to pythongosssss"""
@@ -638,7 +639,8 @@ NODE_CLASS_MAPPINGS = {
     "DownloadFont": BookToolsDownloadFont,
     "TextGrowth": BookToolsCalculateTextGrowth,
     "RandomTextOverlay": BookToolsRandomTextOverlay,
-    "TextOverlay": TextOverlay,
+    "ComfyUI_textover": TextOverlay,
+    "TestNode": TestNode,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -652,5 +654,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "DownloadFont": "[Book Tools] Download Font",
     "TextGrowth": "[Book Tools] Calculate Text Growth",
     "RandomTextOverlay": "[Book Tools] Random Text Overlay",
-    "TextOverlay": "ComfyUI_textover",
+    "ComfyUI_textover": "Text Overlay",
+    "TestNode": "Test Node",
 }
