@@ -46,6 +46,12 @@ class TextOverlay:
                 "margin_percent": ("FLOAT", {"default": 5.0, "min": 0.0, "max": 20.0, "step": 0.5}),
                 "line_spacing": ("INT", {"default": 20, "min": 0, "max": 200}),
                 "width_percent": ("FLOAT", {"default": 80.0, "min": 10.0, "max": 100.0, "step": 5.0}),
+                
+                # Text block padding settings
+                "heading_padding": ("INT", {"default": 20, "min": 0, "max": 200, "step": 1}),
+                "description_padding": ("INT", {"default": 20, "min": 0, "max": 200, "step": 1}),
+                "author_padding": ("INT", {"default": 20, "min": 0, "max": 200, "step": 1}),
+                "boundary_padding": ("INT", {"default": 0, "min": 0, "max": 200, "step": 1}),
             }
         }
 
@@ -77,17 +83,19 @@ class TextOverlay:
         
         return lines
 
-    def calculate_text_block_height(self, lines_data):
-        """Calculate total height of all text elements including spacing"""
+    def calculate_text_block_height(self, lines_data, text_paddings):
+        """Calculate total height of all text elements including spacing and padding"""
         total_height = 0
-        for data in lines_data:
+        
+        for i, data in enumerate(lines_data):
             font_size = data['font_size']
             num_lines = len(data['lines'])
-            total_height += (font_size * num_lines) + (self.line_spacing * (num_lines - 1))
-        
-        # Add spacing between text blocks
-        if len(lines_data) > 1:
-            total_height += self.line_spacing * (len(lines_data) - 1)
+            block_height = (font_size * num_lines) + (self.line_spacing * (num_lines - 1))
+            total_height += block_height
+            
+            # Add padding if it's not the last block
+            if i < len(lines_data) - 1:
+                total_height += text_paddings[i]
         
         return total_height
 
@@ -96,7 +104,8 @@ class TextOverlay:
         heading, heading_font, heading_size, heading_color,
         description, description_font, description_size, description_color,
         author, author_font, author_size, author_color,
-        horizontal_align, vertical_position, margin_percent, line_spacing, width_percent
+        horizontal_align, vertical_position, margin_percent, line_spacing, width_percent,
+        heading_padding, description_padding, author_padding, boundary_padding
     ):
         # Convert tensor to PIL Image
         image_tensor = image
@@ -126,6 +135,7 @@ class TextOverlay:
 
         # Prepare all text elements
         text_blocks = []
+        text_paddings = []
         
         if heading:
             heading_font_obj = load_font(heading_font, heading_size)
@@ -136,6 +146,7 @@ class TextOverlay:
                 'color': parse_color(heading_color),
                 'font_size': heading_size
             })
+            text_paddings.append(heading_padding)
 
         if description:
             description_font_obj = load_font(description_font, description_size)
@@ -146,6 +157,7 @@ class TextOverlay:
                 'color': parse_color(description_color),
                 'font_size': description_size
             })
+            text_paddings.append(description_padding)
 
         if author:
             author_font_obj = load_font(author_font, author_size)
@@ -156,20 +168,21 @@ class TextOverlay:
                 'color': parse_color(author_color),
                 'font_size': author_size
             })
+            text_paddings.append(author_padding)
 
         # Calculate total height of text block
-        total_height = self.calculate_text_block_height(text_blocks)
+        total_height = self.calculate_text_block_height(text_blocks, text_paddings)
 
-        # Calculate vertical starting position
+        # Calculate vertical starting position with boundary padding
         if vertical_position == "top":
-            current_y = margin
+            current_y = margin + boundary_padding
         elif vertical_position == "middle":
             current_y = (img_height - total_height) // 2
         else:  # bottom
-            current_y = img_height - total_height - margin
+            current_y = img_height - total_height - margin - boundary_padding
 
         # Draw all text blocks
-        for block in text_blocks:
+        for i, block in enumerate(text_blocks):
             for line in block['lines']:
                 line_width = draw.textlength(line, font=block['font'])
                 
@@ -184,9 +197,9 @@ class TextOverlay:
                 draw.text((x, current_y), line, fill=block['color'], font=block['font'])
                 current_y += block['font_size'] + line_spacing
             
-            # Add extra spacing between text blocks
-            if block != text_blocks[-1]:  # Don't add spacing after the last block
-                current_y += line_spacing
+            # Add padding between text blocks
+            if i < len(text_blocks) - 1:  # Don't add padding after the last block
+                current_y += text_paddings[i]
 
         # Convert back to tensor
         image_tensor_out = torch.tensor(np.array(image_pil).astype(np.float32) / 255.0)
