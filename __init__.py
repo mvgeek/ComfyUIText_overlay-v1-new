@@ -3,8 +3,8 @@ from PIL import Image, ImageDraw, ImageFont
 import torch
 import numpy as np
 import random
-from text_overlay import TextOverlay
-from test_node import TestNode
+from .text_overlay import TextOverlay
+from .test_node import TestNode
 
 class AnyType(str):
   """A special class that is always equal in not equal comparisons. Credit to pythongosssss"""
