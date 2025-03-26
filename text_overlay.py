@@ -12,6 +12,10 @@ class TextOverlay:
     _vertical_positions = ["top", "middle", "bottom"]
     
     @classmethod
+    def NAME(cls):
+        return "ComfyUI_textover"
+    
+    @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
@@ -181,13 +185,4 @@ class TextOverlay:
         # Convert back to tensor
         image_tensor_out = torch.tensor(np.array(image_pil).astype(np.float32) / 255.0)
         image_tensor_out = torch.unsqueeze(image_tensor_out, 0)
-        return (image_tensor_out,)
-
-# Node registration
-NODE_CLASS_MAPPINGS = {
-    "TextOverlay": TextOverlay,
-}
-
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "TextOverlay": "Text Overlay",
-} 
+        return (image_tensor_out,) 

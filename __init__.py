@@ -652,5 +652,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "DownloadFont": "[Book Tools] Download Font",
     "TextGrowth": "[Book Tools] Calculate Text Growth",
     "RandomTextOverlay": "[Book Tools] Random Text Overlay",
-    "TextOverlay": "[Book Tools] Text Overlay",
+    "TextOverlay": "ComfyUI_textover",
 }
