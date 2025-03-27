@@ -1,4 +1,4 @@
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import torch
 import numpy as np
 import os
@@ -53,11 +53,12 @@ class TextOverlay:
                 "author_padding": ("INT", {"default": 20, "min": 0, "max": 200, "step": 1}),
                 "boundary_padding": ("INT", {"default": 0, "min": 0, "max": 200, "step": 1}),
                 
-                # Shadow settings
+                # Updated Shadow settings
                 "shadow_enabled": (["Yes", "No"], {"default": "Yes"}),
                 "shadow_offset": ("INT", {"default": 2, "min": 1, "max": 10, "step": 1}),
                 "shadow_color": ("STRING", {"default": "#000000"}),
                 "shadow_opacity": ("INT", {"default": 128, "min": 0, "max": 255, "step": 1}),
+                "shadow_blur": ("INT", {"default": 3, "min": 0, "max": 10, "step": 1}),  # New blur setting
             }
         }
 
@@ -112,7 +113,7 @@ class TextOverlay:
         author, author_font, author_size, author_color,
         horizontal_align, vertical_position, margin_percent, line_spacing, width_percent,
         heading_padding, description_padding, author_padding, boundary_padding,
-        shadow_enabled, shadow_offset, shadow_color, shadow_opacity
+        shadow_enabled, shadow_offset, shadow_color, shadow_opacity, shadow_blur
     ):
         # Convert tensor to PIL Image
         image_tensor = image
@@ -197,10 +198,12 @@ class TextOverlay:
         else:  # bottom
             current_y = img_height - total_height - margin - boundary_padding
 
-        # Create a temporary transparent image for text with shadow
+        # Create two separate layers - one for shadow and one for text
+        shadow_layer = Image.new('RGBA', image_pil.size, (0, 0, 0, 0))
         text_layer = Image.new('RGBA', image_pil.size, (0, 0, 0, 0))
+        shadow_draw = ImageDraw.Draw(shadow_layer)
         text_draw = ImageDraw.Draw(text_layer)
-        
+
         # Draw all text blocks
         for i, block in enumerate(text_blocks):
             for line in block['lines']:
@@ -217,7 +220,7 @@ class TextOverlay:
                 # Draw text shadow if enabled
                 if shadow_enabled == "Yes":
                     # Draw shadow with offset
-                    text_draw.text(
+                    shadow_draw.text(
                         (x + shadow_offset, current_y + shadow_offset), 
                         line, 
                         fill=shadow_rgba, 
@@ -228,17 +231,22 @@ class TextOverlay:
                 text_draw.text(
                     (x, current_y), 
                     line, 
-                    fill=block['color'] + (255,),  # Add full opacity to RGB color
+                    fill=block['color'] + (255,),
                     font=block['font']
                 )
                 
                 current_y += block['font_size'] + line_spacing
             
             # Add padding between text blocks
-            if i < len(text_blocks) - 1:  # Don't add padding after the last block
+            if i < len(text_blocks) - 1:
                 current_y += text_paddings[i]
         
-        # Composite the text layer onto the original image
+        # Apply blur to shadow layer if enabled
+        if shadow_enabled == "Yes" and shadow_blur > 0:
+            shadow_layer = shadow_layer.filter(ImageFilter.GaussianBlur(radius=shadow_blur))
+        
+        # Composite the layers: first shadow, then text
+        image_pil = Image.alpha_composite(image_pil, shadow_layer)
         image_pil = Image.alpha_composite(image_pil, text_layer)
         
         # Convert back to RGB for tensor conversion
